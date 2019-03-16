@@ -1,0 +1,389 @@
+import org.gradle.internal.os.OperatingSystem;
+
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
+    }
+
+    dependencies {
+        classpath "com.netflix.nebula:nebula-docker-plugin:2.0.6"
+        // https://mvnrepository.com/artifact/com.kohlschutter.junixsocket/junixsocket-native
+        classpath group: 'com.kohlschutter.junixsocket', name: 'junixsocket-native', version: '2.1.2'
+
+        classpath 'org.jooq:jooq-codegen:3.11.9'
+        classpath 'com.h2database:h2:1.4.177'
+        classpath 'org.orbisgis:h2gis:1.4.0'
+        // https://mvnrepository.com/artifact/org.postgresql/postgresql
+        classpath group: 'org.postgresql', name: 'postgresql', version: '42.2.5'
+
+    }
+}
+
+plugins {
+    id "net.ltgt.apt" version "0.19"
+    id "com.github.spotbugs" version "1.6.10"
+    id 'jacoco'
+    id 'java'
+    id 'nu.studer.jooq' version '3.0.3'
+    id "org.flywaydb.flyway" version "5.2.4"
+}
+
+jacoco {
+    toolVersion = "0.8.2"
+}
+
+
+
+apply plugin: 'java'
+apply plugin: 'net.ltgt.apt'
+apply plugin: 'net.ltgt.apt-idea'
+apply plugin: 'checkstyle'
+apply plugin: 'application'
+apply plugin: 'com.bmuschko.docker-remote-api'
+apply plugin: 'nebula.docker'
+apply plugin: 'jacoco'
+apply plugin: 'nu.studer.jooq'
+
+version = '1.13.0'
+group 'com.github.ssullivan'
+mainClassName = 'com.github.ssullivan.ApiApplication'
+
+// See: https://www.oracle.com/technetwork/java/javase/8u191-relnotes-5032181.html
+
+applicationDefaultJvmArgs = ['-XX:+UseG1GC',
+                             '-Dfile.encoding=UTF-8',
+                             '-XX:+UnlockExperimentalVMOptions',
+                             '-XX:+UseCGroupMemoryLimitForHeap',
+                             '-XX:+UseContainerSupport',
+                             '-XX:MaxRAMPercentage=80.0',
+                             '-XX:InitialRAMPercentage=80.0'
+
+
+]
+repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+
+    maven { url "http://repo1.maven.org/maven2/" }
+}
+
+dependencies {
+    annotationProcessor 'com.google.auto.value:auto-value:1.6.3'
+    implementation 'com.amazonaws:aws-java-sdk-transcribe:1.11.519'
+    implementation 'com.google.auto.value:auto-value-annotations:1.6.3'
+    implementation "io.dropwizard:dropwizard-core:1.3.8"
+    implementation "io.dropwizard:dropwizard-logging:1.3.8"
+    implementation 'com.google.inject:guice:4.2.2'
+    implementation 'com.google.inject.extensions:guice-servlet:4.2.2'
+    implementation 'org.glassfish.jersey.ext:jersey-bean-validation:2.25.1'
+    implementation 'org.glassfish.hk2:guice-bridge:2.5.0-b61'
+    implementation 'io.lettuce:lettuce-core:5.1.4.RELEASE'
+    implementation 'org.apache.commons:commons-pool2:2.6.1'
+    implementation 'com.fasterxml.uuid:java-uuid-generator:3.1.5'
+    implementation 'com.smoketurner:dropwizard-swagger:1.3.8-1'
+    implementation 'com.spotify:completable-futures:0.3.2'
+    implementation 'org.glassfish.jersey.media:jersey-media-multipart:2.25.1'
+
+    // https://mvnrepository.com/artifact/io.github.novacrypto/Base58
+    implementation group: 'io.github.novacrypto', name: 'Base58', version: '0.1.3'
+
+    // https://mvnrepository.com/artifact/net.postgis/postgis-jdbc
+    compile group: 'net.postgis', name: 'postgis-jdbc', version: '2.3.0'
+
+    // Database
+    // https://mvnrepository.com/artifact/org.postgresql/postgresql
+    implementation group: 'org.postgresql', name: 'postgresql', version: '42.2.5'
+    implementation 'com.zaxxer:HikariCP:3.3.1'
+    implementation 'com.amazonaws:aws-java-sdk-rds:1.11.505'
+    implementation 'org.jooq:jooq:3.11.9'
+
+    runtime 'com.h2database:h2:1.4.177'
+    runtime group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26'
+    runtime group: 'org.postgresql', name: 'postgresql', version: '42.2.5'
+
+    jooqRuntime 'org.jooq:jooq:3.11.9'
+    jooqRuntime group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26'
+    jooqRuntime group: 'org.postgresql', name: 'postgresql', version: '42.2.5'
+
+    // For extracing data from spreadsheet
+    implementation 'org.apache.poi:poi-ooxml:4.0.1'
+    implementation 'org.apache.poi:poi:4.0.1'
+    implementation 'com.amazonaws:aws-java-sdk-s3:1.11.500'
+
+
+    // https://mvnrepository.com/artifact/io.dropwizard/dropwizard-testing
+    testCompile group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.3.8'
+// https://mvnrepository.com/artifact/org.mockito/mockito-core
+    testCompile group: 'org.mockito', name: 'mockito-core', version: '2.24.0'
+
+    // https://mvnrepository.com/artifact/org.mockito/mockito-junit-jupiter
+    testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '2.24.0'
+    testCompile 'org.glassfish.jersey.test-framework.providers:jersey-test-framework-provider-grizzly2:2.25.1'
+    testImplementation(
+            'org.junit.jupiter:junit-jupiter-api:5.4.0'
+    )
+    testRuntimeOnly(
+            'org.junit.jupiter:junit-jupiter-engine:5.4.0'
+    )
+    testCompile "org.hamcrest:hamcrest-junit:2.0.0.0"
+    testCompile 'org.junit.vintage:junit-vintage-engine:5.4.0'
+    testCompile 'org.awaitility:awaitility:3.1.6'
+    testImplementation "com.squareup.okhttp3:mockwebserver:+"
+
+}
+
+
+test {
+    useJUnitPlatform()
+//    // I think these might be breaking on travis
+    //exclude '**/SamshaLocatorEtlTest.class'
+   // exclude '**/RedisFacilityFindTests.class'
+}
+test.finalizedBy jacocoTestReport
+spotbugs {
+    ignoreFailures = true
+}
+
+
+checkstyle {
+    toolVersion = "8.9"
+}
+
+checkstyleMain.exclude '.*generated-src.*'
+
+ext.AWS_ACCOUNT_ID = System.getenv("AWS_ACCOUNT_ID")
+ext.AWS_DEFAULT_REGION = System.getenv("AWS_DEFAULT_REGION")
+
+if (AWS_DEFAULT_REGION == null) {
+    AWS_DEFAULT_REGION = "us-east-2"
+}
+
+
+task copyDockerResources(type: Copy) {
+    doFirst {
+        mkdir project.buildDir
+        mkdir new File(project.buildDir, "docker-resources")
+    }
+    from 'docker/'
+    into 'build/docker-resources/'
+    include "*.*"
+}
+
+
+distributions {
+    main {
+        contents {
+            from(copyDockerResources) {
+                into "bin"
+            }
+
+        }
+    }
+}
+
+distTar {
+    into(project.name + "-" + project.version + "/data") {
+        from 'data/geonames/postalcodes'
+        include '*.*'
+    }
+}
+
+distZip {
+    into(project.name + "-" + project.version + "/data") {
+        from 'data/geonames/postalcodes'
+        include '*.*'
+    }
+}
+nebulaDocker {
+    dockerBase = 'openjdk:8-alpine'
+
+    // There is a problem with the docker java library that this
+    // plugin uses where it doesn't work on windows.
+    // So if you're stuck with Windows then you'll need
+    // to make your daemon listen on localhost
+    if (OperatingSystem.current().isWindows()) {
+        dockerUrl = 'tcp://127.0.0.1:2375'
+    }
+    else {
+        dockerUrl = 'unix:///var/run/docker.sock'
+    }
+    dockerRepo = [test: '', prod: AWS_ACCOUNT_ID + ".dkr.ecr." + AWS_DEFAULT_REGION + ".amazonaws.com/treatmentcenter-api", dev: AWS_ACCOUNT_ID + ".dkr.ecr." + AWS_DEFAULT_REGION + ".amazonaws.com/dev/treatmentcenter-api"]
+    dockerImage = {
+        arg('UID=7999')
+        arg('GID=7999')
+        environmentVariable('JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap')
+        environmentVariable('APP_VERSION', project.version)
+        environmentVariable('API_VERSION', project.version)
+        entryPoint('/docker-entrypoint.sh')
+        runCommand('apk --no-cache update \\\n' +
+                '    && apk --no-cache upgrade \\\n' +
+                '    && apk --no-cache add \\\n' +
+                '\tca-certificates dos2unix \\\n' +
+                '\tcurl \\\n' +
+                '        shadow \\\n' +
+                '        su-exec \\\n' +
+                '    && sed -i s/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=30/ ${JAVA_HOME}/jre/lib/security/java.security \\\n' +
+                '    && addgroup -g $GID app_user \\\n' +
+                '    && adduser -D -s /bin/false -H -u $UID -G app_user app_user')
+        copyFile('docker-entrypoint.sh', '/')
+        copyFile('server.yml', '/treatmentcenter-api-latest/bin/')
+        runCommand('chmod ugo+rx ./docker-entrypoint.sh && chmod ugo+rx /treatmentcenter-api-latest/bin/*.sh && dos2unix ./docker-entrypoint.sh')
+        defaultCommand "/treatmentcenter-api-latest/bin/treatmentcenter-api", "server", "/treatmentcenter-api-latest/bin/server.yml"
+    }
+
+    afterEvaluate {
+
+        task createBuildDir {
+            doLast {
+                mkdir project.buildDir
+                mkdir new File(project.buildDir, "docker")
+            }
+        }
+
+        task copyDockerDir(type: Copy, dependsOn: [createBuildDir]) {
+            from 'docker/'
+            into 'build/docker/app-lib'
+            include "*.*"
+        }
+
+        createDockerfile.dependsOn copyDockerDir
+        copyDockerDir.mustRunAfter nebulaDockerCopyDistResources
+    }
+}
+
+def postgresPortEnv = System.getenv("PGPORT")
+def postgresPort = postgresPortEnv == null || postgresPortEnv.isEmpty() ? 5432 : Integer.parseInt(postgresPortEnv)
+def postgresUser = "postgres"
+def postgresPassword = ""
+def postgresHost = "localhost"
+def postgresDb = "app_dev"
+
+if (System.getenv("TRAVIS")) {
+    postgresUser = "travis_ci_user"
+    postgresPassword = "travis"
+    postgresHost = "localhost"
+    postgresDb = "travis_ci_test"
+}
+
+
+flyway {
+    url = "jdbc:postgresql://$postgresHost:$postgresPort/$postgresDb"
+    user = postgresUser
+    password = postgresPassword
+    schemas = ['public']
+}
+
+
+jooq {
+    version = '3.11.9'
+    app(sourceSets.main) {
+        jdbc {
+            driver = 'org.postgresql.Driver'
+            url = "jdbc:postgresql://$postgresHost:$postgresPort/$postgresDb"
+
+            user = postgresUser
+            password = postgresPassword
+            schema = 'public'
+        }
+        generator {
+            name = 'org.jooq.codegen.DefaultGenerator'
+
+            database {
+                name = 'org.jooq.meta.postgres.PostgresDatabase'
+                inputSchema = 'public'
+                includes = '.*'
+                // https://github.com/jOOQ/jOOQ/issues/4055 ;-(
+                excludes = '_?St_.*'
+                forcedTypes {
+                    forcedType {
+                        userType = 'com.github.ssullivan.model.GeoPoint'
+                        expression = 'geog'
+                        types = '.*'
+                        binding = 'com.github.ssullivan.db.postgres.PostGisGeometryBinding'
+                    }
+                }
+            }
+            target {
+                packageName = 'com.github.ssullivan.db.psql'
+            }
+            generate {
+                relations = true
+                deprecated = false
+                records = true
+                immutablePojos = false
+                fluentSetters = true
+                daos = false
+            }
+
+        }
+    }
+}
+
+tasks.generateAppJooqSchemaSource.with {
+    def out = new ByteArrayOutputStream()
+    javaExecSpec = { JavaExecSpec s ->
+        s.standardOutput = out
+        s.errorOutput = out
+        s.ignoreExitValue = true
+        s.jvmArgs '-Xmx512M'
+    }
+    execResultHandler = { ExecResult r ->
+        if (r.exitValue != 0) {
+            throw new RuntimeException('jOOQ source code generation failed:\n\n' + out.toString())
+        }
+    }
+}
+
+generateAppJooqSchemaSource.dependsOn(flywayMigrate)
+
+
+task codeCoverageReport(type: JacocoReport, dependsOn: jacocoTestReport) {
+    group = 'Verification'
+    executionData fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec")
+
+
+    reports {
+        xml.setEnabled(true)
+        html.setEnabled(true)
+        csv.setEnabled(true)
+        xml.setDestination(new File("${buildDir}/reports/jacoco/report.xml"))
+        html.setDestination(new File("${buildDir}/reports/jacoco/report.html"))
+    }
+
+    sourceSets sourceSets.main
+}
+
+
+
+idea {
+    project {
+        // experimental: whether annotation processing will be configured in the IDE; only actually used with the 'idea' task.
+        configureAnnotationProcessing = true
+    }
+    module {
+        apt {
+            // whether generated sources dirs are added as generated sources root
+            addGeneratedSourcesDirs = true
+            // whether the annotationProcessor/apt and testAnnotationProcessor/testApt dependencies are added as module dependencies
+            addAptDependencies = true
+
+            // The following are mostly internal details; you shouldn't ever need to configure them.
+            // whether the compileOnly and testCompileOnly dependencies are added as module dependencies
+            addCompileOnlyDependencies = false // defaults to true in Gradle < 2.12
+            // the dependency scope used for apt and/or compileOnly dependencies (when enabled above)
+            mainDependenciesScope = "PROVIDED"
+            // defaults to "COMPILE" in Gradle < 3.4, or when using the Gradle integration in IntelliJ IDEA
+        }
+    }
+}
+
+task detect {
+    doLast {
+        println(OperatingSystem.current().isMacOsX())
+        println(OperatingSystem.current().isLinux())
+    }
+}
